@@ -1,133 +1,71 @@
 import React, { useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  View,
-  Image,
-  ActivityIndicator,
-  Text,
-  TextInput,
-  Button,
-} from 'react-native';
-
+import { View, TextInput, Button, Image, StyleSheet, Alert } from 'react-native';
 import axios from 'axios';
-// Remove TypeScript types
-global.Buffer = require('buffer').Buffer;
 
-async function query(QueryData) {
-  try {
-    const response = await axios({
-      url: `https://api-inference.huggingface.co/models/SG161222/Realistic_Vision_V1.4`,
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer hf_GoBosgWLoUouXqVPDvPNLIJyLcQFoqpfu`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      data: QueryData,
-      responseType: 'arraybuffer',
-    });
+export default function ImageGenerator() {
+  const [prompt, setPrompt] = useState('');
+  const [imageUri, setImageUri] = useState(null);
 
-    const mimeType = response.headers['content-type'];
-    const result = response.data;
-
-    const base64data = Buffer.from(result, 'binary').toString('base64');
-    const img = `data:${mimeType};base64,${base64data}`;
-
-    return img;
-  } catch (error) {
-    console.error('Error making the request:', error);
-    throw error;
-  }
-}
-
-function Second() {
-  const [inputText, setInputText] = useState('');
-  const [imageData, setImageData] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleButtonClick = async () => {
-    setLoading(true);
+  const fetchImage = async () => {
     try {
-      const data = { inputs: inputText }; // Ensure inputText is defined
-      const response = await query(data);
+      console.log("Sending request with prompt:", prompt);
+      const response = await axios({
+        url: `https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell`,
+        method: 'POST',
+        headers: { 
+          Authorization: 'Bearer ',
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        responseType: "blob",
+        data: {inputs: prompt}
+      });
 
-      // Handle the image response
-      console.log('Image Response:', response);
-      setLoading(false);
-      setImageData(response);
+      console.log("API response:", response);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        console.log("Image URI set");
+        setImageUri(reader.result);
+      };
+      reader.readAsDataURL(response.data);
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error generating image:", error);
+      Alert.alert("Error", "Failed to generate image. Check API key & network.");
     }
   };
 
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic">
-      <View>
-        <Text fontSize="xl" mt={10}>
-          Input your prompt in the field below.
-        </Text>
-        <View>
-          <TextInput
-            style={styles.input}
-            placeholder="Blackhole"
-            value={inputText}
-            onChangeText={setInputText}
-          />
-          <Button
-            size="sm"
-            mt={5}
-            variant="outline"
-            colorScheme="primary"
-            title='submit'
-            onPress={handleButtonClick}
-          >
-            Submit
-          </Button>
-        </View>
-        {loading ? (
-          <ActivityIndicator size="large" color="#00ff00" />
-        ) : (
-          imageData && (
-            <Image
-              source={{ uri: `${imageData}` }}
-              style={{ width: 300, height: 300 }}
-            />
-          )
-        )}
-      </View>
-    </ScrollView>
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Enter your prompt"
+        value={prompt}
+        onChangeText={setPrompt}
+        style={styles.input}
+      />
+      <Button title="Generate Image" onPress={fetchImage} />
+      {imageUri && <Image source={{ uri: imageUri }} style={styles.image} />}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   input: {
-    height: 40,
-    margin: 12,
+    width: "100%",
     borderWidth: 1,
-    borderColor: '#007BFF',
     padding: 10,
-    backgroundColor: '#F0F8FF',
+    marginBottom: 10,
     borderRadius: 5,
   },
+  image: {
+    width: 200,
+    height: 200,
+    marginTop: 20,
+  },
 });
-
-export default Second;
